@@ -5,7 +5,11 @@ const useTls = config.redisUrl.startsWith("rediss://");
 const redisOptions: RedisOptions = {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
-  ...(useTls ? { tls: {} } : {})
+  ...(useTls ? { tls: {} } : {}),
+  // Lazy connect: don't open a TCP socket until the first command.
+  // This prevents the module-level instantiation from crashing the
+  // Vercel serverless function during cold start.
+  lazyConnect: true
 };
 
 export const redis = new IORedis(config.redisUrl, redisOptions);

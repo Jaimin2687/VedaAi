@@ -189,11 +189,22 @@ router.post(
     assignment.status = "pending";
     await assignment.save();
 
-    await generationQueue.add(
+    // Use a dedicated ephemeral connection to avoid dropped connection errors on Vercel
+    const ephemeralRedis = new IORedis(config.redisUrl, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      ...(config.redisUrl.startsWith("rediss://") ? { tls: {} } : {})
+    });
+    const ephemeralQueue = new Queue("generation", { connection: ephemeralRedis });
+
+    await ephemeralQueue.add(
       "generate",
       { assignmentId: assignment._id.toString() },
       { removeOnComplete: true, removeOnFail: false }
     );
+
+    await ephemeralQueue.close();
+    ephemeralRedis.disconnect();
 
     await redis.set(
       `assignment:${assignment._id.toString()}:status`,

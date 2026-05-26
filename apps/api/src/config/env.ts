@@ -39,9 +39,14 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   // Fail fast on missing env variables to avoid running insecure defaults.
+  const fieldErrors = parsed.error.flatten().fieldErrors;
   // eslint-disable-next-line no-console
-  console.error("Invalid environment configuration", parsed.error.flatten().fieldErrors);
-  process.exit(1);
+  console.error("Invalid environment configuration", fieldErrors);
+  // NOTE: Do NOT use process.exit() in serverless environments — it crashes the
+  // entire Vercel function invocation with FUNCTION_INVOCATION_FAILED.
+  throw new Error(
+    `Missing or invalid environment variables: ${Object.keys(fieldErrors).join(", ")}`
+  );
 }
 
 const env = parsed.data;

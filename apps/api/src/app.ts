@@ -76,6 +76,10 @@ export const createApp = () => {
     res.json({ status: "ok" });
   });
 
+  app.get("/", (_req, res) => {
+    res.json({ status: "ok", service: "vedaai-api" });
+  });
+
   app.use("/api/assignments", assignmentsRouter);
 
   app.use(notFound);

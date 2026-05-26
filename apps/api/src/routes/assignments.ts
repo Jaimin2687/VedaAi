@@ -2,7 +2,6 @@ import { Router } from "express";
 import fs from "fs/promises";
 import multer from "multer";
 import { z } from "zod";
-import { PDFParse } from "pdf-parse";
 import mongoose from "mongoose";
 import { AssignmentModel } from "../models/Assignment";
 import { GenerationModel } from "../models/Generation";
@@ -42,9 +41,16 @@ const extractSourceText = async (file?: Express.Multer.File) => {
   if (!file) return "";
 
   if (file.mimetype === "application/pdf") {
-    const parser = new PDFParse({ data: file.buffer });
-    const parsed = await parser.getText();
-    return parsed.text.slice(0, 8000);
+    try {
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: file.buffer });
+      const parsed = await parser.getText();
+      return parsed.text.slice(0, 8000);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("PDF parsing failed, continuing without extracted text", error);
+      return "";
+    }
   }
 
   if (file.mimetype === "text/plain") {

@@ -6,7 +6,8 @@ import mongoose from "mongoose";
 import { AssignmentModel } from "../models/Assignment";
 import { GenerationModel } from "../models/Generation";
 import { asyncHandler } from "../utils/asyncHandler";
-import { generationQueue } from "../queues";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
 import { config } from "../config/env";
 import { streamPdf } from "../services/pdf";
 import { redis } from "../services/redis";
@@ -109,11 +110,24 @@ router.post(
       status: "pending"
     });
 
-    await generationQueue.add(
+    // Vercel serverless functions drop idle TCP connections when frozen.
+    // Instead of relying on a global BullMQ connection (which fails if dropped because
+    // BullMQ enforces maxRetriesPerRequest: null), we use a dedicated ephemeral connection.
+    const ephemeralRedis = new IORedis(config.redisUrl, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      ...(config.redisUrl.startsWith("rediss://") ? { tls: {} } : {})
+    });
+    const ephemeralQueue = new Queue("generation", { connection: ephemeralRedis });
+
+    await ephemeralQueue.add(
       "generate",
       { assignmentId: assignment._id.toString() },
       { removeOnComplete: true, removeOnFail: false }
     );
+
+    await ephemeralQueue.close();
+    ephemeralRedis.disconnect();
 
     await redis.set(
       `assignment:${assignment._id.toString()}:status`,

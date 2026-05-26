@@ -3,7 +3,6 @@ import { config } from "../config/env";
 
 const useTls = config.redisUrl.startsWith("rediss://");
 const redisOptions: RedisOptions = {
-  maxRetriesPerRequest: null,
   enableReadyCheck: false,
   ...(useTls ? { tls: {} } : {}),
   // Lazy connect: don't open a TCP socket until the first command.

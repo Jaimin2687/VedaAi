@@ -1,0 +1,21 @@
+{
+  "name": "vedaai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev --workspace @vedaai/api\" \"npm:dev --workspace apps/web\"",
+    "dev:worker": "npm run dev:worker --workspace @vedaai/api",
+    "build": "npm run build --workspace @vedaai/api && npm run build --workspace apps/web",
+    "lint": "npm run lint --workspace apps/web"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

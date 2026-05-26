@@ -1,3 +1,4 @@
+import http from "http";
 import { Worker } from "bullmq";
 import { AssignmentModel, type Assignment } from "./models/Assignment";
 import { GenerationModel } from "./models/Generation";
@@ -228,8 +229,23 @@ const startWorkers = async () => {
   });
 };
 
-startWorkers().catch((error) => {
-  // eslint-disable-next-line no-console
-  console.error("Worker failed to start", error);
-  process.exit(1);
-});
+startWorkers()
+  .then(() => {
+    // Minimal HTTP server so this process can run as a free Render Web Service.
+    // Render pings this endpoint to confirm the service is alive.
+    const port = Number(process.env.PORT) || 10000;
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", service: "vedaai-worker" }));
+    });
+
+    server.listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Worker health-check server listening on port ${port}`);
+    });
+  })
+  .catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error("Worker failed to start", error);
+    process.exit(1);
+  });

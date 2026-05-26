@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: vedaai-worker
+    runtime: node
+    region: oregon
+    rootDir: apps/api
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/worker.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant

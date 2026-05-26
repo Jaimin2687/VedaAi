@@ -4,10 +4,9 @@ import { AssignmentModel, type Assignment } from "./models/Assignment";
 import { GenerationModel } from "./models/Generation";
 import { buildPrompt } from "./services/prompt";
 import { generateAssessment } from "./services/groq";
-import { generatePdf } from "./services/pdf";
 import { config } from "./config/env";
 import { redis, redisPub } from "./services/redis";
-import { pdfQueue, queueConnection } from "./queues";
+import { queueConnection } from "./queues";
 import { connectDatabase } from "./db";
 
 const publishUpdate = async (payload: Record<string, unknown>) => {
@@ -166,11 +165,8 @@ const startWorkers = async () => {
         generationId: generation._id.toString()
       });
 
-      await pdfQueue.add(
-        "generate-pdf",
-        { generationId: generation._id.toString() },
-        { removeOnComplete: true, removeOnFail: false }
-      );
+      // PDF generation is now handled dynamically in the API route,
+      // so we don't need to queue a PDF job anymore.
 
       return generation._id.toString();
     },
@@ -193,40 +189,6 @@ const startWorkers = async () => {
     });
   });
 
-  const pdfWorker = new Worker(
-    "pdf",
-    async (job) => {
-      const generation = await GenerationModel.findById(job.data.generationId);
-      if (!generation) {
-        throw new Error("Generation not found.");
-      }
-
-      const pdfPath = await generatePdf(generation);
-      generation.pdfPath = pdfPath;
-      await generation.save();
-
-      await publishUpdate({
-        assignmentId: generation.assignmentId.toString(),
-        status: "pdf-ready"
-      });
-
-      return pdfPath;
-    },
-    { connection: queueConnection, concurrency: 1 }
-  );
-
-  pdfWorker.on("failed", async (job, error) => {
-    // eslint-disable-next-line no-console
-    console.error("PDF job failed", { jobId: job?.id, generationId: job?.data?.generationId }, error);
-    if (!job?.data?.generationId) return;
-    const generation = await GenerationModel.findById(job.data.generationId);
-    if (!generation) return;
-    await publishUpdate({
-      assignmentId: generation.assignmentId.toString(),
-      status: "pdf-failed",
-      error: error.message
-    });
-  });
 };
 
 startWorkers()

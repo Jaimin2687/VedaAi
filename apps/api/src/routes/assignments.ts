@@ -8,6 +8,7 @@ import { GenerationModel } from "../models/Generation";
 import { asyncHandler } from "../utils/asyncHandler";
 import { generationQueue } from "../queues";
 import { config } from "../config/env";
+import { streamPdf } from "../services/pdf";
 import { redis } from "../services/redis";
 
 const router = Router();
@@ -206,12 +207,26 @@ router.get(
     }
 
     const generation = await GenerationModel.findById(assignment.latestGenerationId);
-    if (!generation?.pdfPath) {
-      res.status(404).json({ error: "PDF not available yet." });
+    if (!generation) {
+      res.status(404).json({ error: "Generation not found." });
       return;
     }
 
-    res.download(generation.pdfPath);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="assessment-${generation._id.toString()}.pdf"`
+    );
+
+    try {
+      await streamPdf(generation as any, res);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to stream PDF:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to generate PDF." });
+      }
+    }
   })
 );
 

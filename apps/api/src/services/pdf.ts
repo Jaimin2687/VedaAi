@@ -10,24 +10,19 @@ const ensureDir = (dir: string) => {
   }
 };
 
-export const generatePdf = async (
-  generation: Generation & { _id: { toString: () => string } }
+export const streamPdf = async (
+  generation: Generation & { _id: { toString: () => string } },
+  writeStream: NodeJS.WritableStream
 ) => {
   if (!generation.header) {
     throw new Error("Missing generation header.");
   }
 
   const header = generation.header;
-  const storageDir = path.resolve(config.pdfStorageDir);
-  ensureDir(storageDir);
-
-  const filename = `assessment-${generation._id.toString()}-${Date.now()}.pdf`;
-  const filePath = path.join(storageDir, filename);
 
   await new Promise<void>((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50 });
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    doc.pipe(writeStream);
 
     doc.fontSize(16).text(header.schoolName, { align: "center" });
     doc.moveDown(0.3);
@@ -112,9 +107,7 @@ export const generatePdf = async (
     }
 
     doc.end();
-    stream.on("finish", () => resolve());
-    stream.on("error", reject);
+    writeStream.on("finish", () => resolve());
+    writeStream.on("error", reject);
   });
-
-  return filePath;
 };

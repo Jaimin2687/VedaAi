@@ -68,5 +68,3 @@ Frontend runs on `http://localhost:3000`, API on `http://localhost:4000`.
 - File upload type + size validation
 - Environment-based config with strict validation
 
-## Notes
-Figma assets were referenced from provided screenshots due to limited design file access in the current environment.

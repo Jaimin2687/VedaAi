@@ -248,46 +248,35 @@ const stripTrailingCommas = (value: string) =>
   value.replace(/,\s*([}\]])/g, "$1");
 
 const extractJson = (content: string) => {
-  const trimmed = content.trim();
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return stripTrailingCommas(trimmed);
+  let cleanContent = content.trim();
+  
+  // Remove markdown code blocks if present
+  const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)```/i;
+  const match = cleanContent.match(jsonBlockRegex);
+  if (match) {
+    cleanContent = match[1].trim();
   }
 
-  const start = trimmed.indexOf("{");
-  if (start === -1) {
-    throw new Error("LLM response did not contain JSON.");
-  }
+  const start = cleanContent.indexOf("{");
+  const end = cleanContent.lastIndexOf("}");
 
-  let depth = 0;
-  let end = -1;
-  for (let i = start; i < trimmed.length; i += 1) {
-    const char = trimmed[i];
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-
-  if (end === -1) {
+  if (start === -1 || end === -1 || start > end) {
     throw new Error("LLM response did not contain complete JSON.");
   }
 
-  return stripTrailingCommas(trimmed.slice(start, end + 1));
+  return stripTrailingCommas(cleanContent.slice(start, end + 1));
 };
 
 export const generateAssessment = async (prompt: string) => {
   const completion = await groq.chat.completions.create({
     model: config.groqModel,
     temperature: 0.2,
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
-          "You are a precise JSON generator. Follow the schema exactly and return JSON only."
+          "You are a precise JSON generator. Follow the schema exactly and return JSON only. The output must be a valid JSON object."
       },
       { role: "user", content: prompt }
     ]
